@@ -1,0 +1,25 @@
+# Arquivos Python gerados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ambiente virtual
+venv/
+.venv/
+env/
+
+# Arquivos de configuração local
+.env
+.local_settings.py
+
+# Arquivos de IDE
+.idea/
+.vscode/
+
+# Banco de dados SQLite (comum em desenvolvimento)
+*.sqlite3
+*.db
+
+# Arquivos de log
+*.log
