@@ -1,34 +1,69 @@
-import tweepy
-from dotenv import load_dotenv
+import sys
 import os
+
+# Adicionar o diretório raiz ao sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+
+import tweepy
 import time
+import requests
+from src.config import API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET, BEARER_TOKEN
 
-# Carregar variáveis do arquivo .env
-load_dotenv()
+class TwitterScraper:
+    def __init__(self):
+        # Autenticação com a API v2
+        self.client = tweepy.Client(bearer_token=BEARER_TOKEN)
+        self.processed_tweet_ids = set()
 
-# Substitua pelas variáveis carregadas
-API_KEY = os.getenv("API_KEY")
-API_SECRET = os.getenv("API_SECRET")
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-ACCESS_TOKEN_SECRET = os.getenv("ACCESS_TOKEN_SECRET")
-BEARER_TOKEN = os.getenv("BEARER_TOKEN")
+    def get_new_tweets(self, username="ABalcacar", hashtags="#FURIACS OR #CS2", max_results=10):
+        """Busca novos tweets de um usuário com as hashtags especificadas."""
+        try:
+            user = self.client.get_user(username=username)
+            query = f"from:{user.data.username} ({hashtags})"
+            tweets = self.client.search_recent_tweets(query=query, max_results=max_results)
 
-# Autenticação com a API v2
-client = tweepy.Client(bearer_token=BEARER_TOKEN)
+            new_tweets = []
+            if tweets.data:
+                for tweet in tweets.data:
+                    if tweet.id not in self.processed_tweet_ids:
+                        self.processed_tweet_ids.add(tweet.id)
+                        new_tweets.append(tweet)
 
-# Extrair tweets de um perfil com as hashtags #FURIACS ou #CS2
-try:
-    user = client.get_user(username="FURIA")
-    query = f"from:{user.data.username} (#FURIACS OR #CS2)"  # Filtrar tweets com #FURIACS ou #CS2
-    tweets = client.search_recent_tweets(query=query, max_results=10)
+            return new_tweets
 
-    for tweet in tweets.data:
-        print(f"Data: {tweet.created_at}")
-        print(f"Tweet: {tweet.text}")
-        print("-" * 50)
+        except tweepy.errors.TooManyRequests:
+            print("Limite de requisições excedido. Aguardando...")
+        except tweepy.errors.TweepyException as e:
+            print(f"Erro ao acessar a API do Twitter: {e}")
+        except Exception as e:
+            print(f"Erro inesperado: {e}")
 
-except tweepy.errors.TooManyRequests:
-    print("Limite de requisições excedido. Aguardando...")
-    time.sleep(900)  # Aguarde 15 minutos antes de tentar novamente
-except tweepy.errors.TweepyException as e:
-    print(f"Erro ao acessar a API do Twitter: {e}")
+        return []
+
+# Instanciar o scraper
+scraper = TwitterScraper()
+
+# Loop para executar continuamente
+while True:
+    try:
+        # Buscar novos tweets
+        new_tweets = scraper.get_new_tweets()
+
+        # Verificar se há tweets antes de iterar
+        if new_tweets:
+            for tweet in new_tweets:
+                print(f"Data: {tweet.created_at}")
+                print(f"Tweet: {tweet.text}")
+                print("-" * 50)
+        else:
+            print("Nenhum tweet encontrado.")
+
+    except requests.exceptions.ConnectionError:
+        print("Erro de conexão. Tentando novamente em 30 segundos...")
+        time.sleep(30)  # Aguarda 30 segundos antes de tentar novamente
+    except Exception as e:
+        print(f"Erro inesperado: {e}")
+
+    # Aguarda 15 segundos antes de buscar novamente
+    time.sleep(15)
